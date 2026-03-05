@@ -493,14 +493,10 @@ function fbSanitize(obj){
 }
 
 function saveLocal(){
-  localStorage.setItem('rjaca-demo',JSON.stringify(S.data));
-  if(window._FBDB && S.data){
-    try{
-      var cleanData = fbSanitize(JSON.parse(JSON.stringify(S.data)));
-      window._FBDB.ref('rjaca').set(cleanData);
-    }
-    catch(e){ console.warn('FB save:',e); }
-  }
+  if(typeof window.ensureData==='function') window.ensureData();
+  localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
+  if(typeof window._fbLastSave==='function') window._fbLastSave();
+  if(typeof window._fbWrite==='function') window._fbWrite(S.data);
 }
 function empList(activeOnly=true){return Object.entries(S.data.employees||{}).filter(([,e])=>!activeOnly||(e.active!==false)).map(([code,e])=>({code,...e})).sort((a,b)=>a.name.localeCompare(b.name));}
 function tList(){return Object.entries(S.data.tasks||{}).map(([id,t])=>({id,...t}));}
@@ -1643,64 +1639,90 @@ loadData();
     appId:"1:735397174133:web:e880eaab35ea1471b4513c"
   };
 
+  function ensureStructure(d){
+    if(!d) d={};
+    if(!d.tasks) d.tasks={};
+    if(!d.employees) d.employees={};
+    if(!d.settings) d.settings={};
+    if(!d.categories) d.categories={};
+    if(!d.loginLog) d.loginLog={};
+    if(!d.messages) d.messages={};
+    return d;
+  }
+  window.ensureData = function(){ S.data = ensureStructure(S.data); };
+
   function loadJS(src, cb){
     var s=document.createElement('script');
     s.src=src; s.async=true;
     s.onload=cb;
-    s.onerror=function(){ console.warn('Failed:',src); };
+    s.onerror=function(){ console.warn('Failed to load Firebase'); cb(); };
     document.head.appendChild(s);
   }
+
+  // Save only to Firebase, do not re-read after save (avoids loop)
+  var _saving = false;
+  window._fbWrite = function(data){
+    if(!window._FBDB) return;
+    if(_saving) return;
+    _saving = true;
+    var clean = fbSanitize(JSON.parse(JSON.stringify(data)));
+    window._FBDB.ref('rjaca').set(clean).then(function(){
+      _saving = false;
+    }).catch(function(e){
+      _saving = false;
+      console.warn('FB write error:', e);
+    });
+  };
 
   function startFirebase(){
     try {
       if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
       var db = firebase.database();
       window._FBDB = db;
-      console.log('✅ Firebase connected');
-      // Switch banner to Live Mode
-      var db2 = document.getElementById('demoBanner');
-      var lb = document.getElementById('liveBanner');
-      if(db2) db2.style.display='none';
-      if(lb) lb.style.display='block';
 
-      // First: read existing data
+      // Show live banner
+      var dem = document.getElementById('demoBanner');
+      var liv = document.getElementById('liveBanner');
+      if(dem) dem.style.display='none';
+      if(liv) liv.style.display='block';
+      console.log('✅ Firebase connected');
+
+      // Load once on start
       db.ref('rjaca').once('value').then(function(snap){
         if(snap.exists()){
-          S.data = snap.val();
+          var d = ensureStructure(snap.val());
+          S.data = d;
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           console.log('✅ Firebase data loaded');
-          // Ensure all required objects exist
-          if(!S.data.tasks) S.data.tasks={};
-          if(!S.data.employees) S.data.employees={};
-          if(!S.data.settings) S.data.settings={};
-          if(!S.data.categories) S.data.categories={};
-          if(!S.data.loginLog) S.data.loginLog={};
-          if(!S.data.messages) S.data.messages={};
         } else {
-          // No data yet — push current data up
-          db.ref('rjaca').set(JSON.parse(JSON.stringify(S.data)));
-          console.log('✅ Firebase initialized with local data');
+          // First time — write local data to Firebase
+          window._fbWrite(S.data);
+          console.log('✅ Local data pushed to Firebase');
         }
 
-        // Real-time listener
+        // Real-time listener — only updates when OTHER devices change data
+        var lastSave = Date.now();
         db.ref('rjaca').on('value', function(snap){
+          // Skip if this update is from our own save (within 2 seconds)
+          if(Date.now() - lastSave < 2000) return;
           if(!snap.exists()) return;
-          var d = snap.val();
-          if(JSON.stringify(d) === JSON.stringify(S.data)) return;
+          var d = ensureStructure(snap.val());
+          var prevUser = S.user;
+          var prevPage = S.page;
           S.data = d;
-          if(!S.data.tasks) S.data.tasks={};
-          if(!S.data.employees) S.data.employees={};
-          if(!S.data.settings) S.data.settings={};
-          if(!S.data.categories) S.data.categories={};
-          if(!S.data.loginLog) S.data.loginLog={};
+          S.user = prevUser;
+          S.page = prevPage;
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           if(typeof updateChatBadge==='function') updateChatBadge();
         });
-      }).catch(function(e){ console.warn('Firebase read error:',e); });
 
-    } catch(e){ console.warn('Firebase start error:',e); }
+        // Track save time
+        window._fbLastSave = function(){ lastSave = Date.now(); };
+      }).catch(function(e){ console.warn('Firebase load error:', e); });
+
+    } catch(e){ console.warn('Firebase start error:', e); }
   }
 
   loadJS('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function(){
