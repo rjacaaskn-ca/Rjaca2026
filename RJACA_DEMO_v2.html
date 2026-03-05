@@ -313,6 +313,7 @@ table.xtbl tbody td.wrap{white-space:normal;min-width:160px;max-width:220px;}
 <body>
 
 <div class="demo-bar" id="demoBanner">⚡ <b>Demo Mode</b> — Data saved locally on this device.</div>
+<div class="demo-bar" id="liveBanner" style="display:none;background:linear-gradient(90deg,#1a6b3a,#2d9e5a);color:#fff">🟢 <b>Live Mode</b> — Connected to Firebase. Real-time sync active.</div>
 
 <div class="screen active" id="loginScreen">
 <div class="login-wrap">
@@ -1654,6 +1655,11 @@ loadData();
       var db = firebase.database();
       window._FBDB = db;
       console.log('✅ Firebase connected');
+      // Switch banner to Live Mode
+      var db2 = document.getElementById('demoBanner');
+      var lb = document.getElementById('liveBanner');
+      if(db2) db2.style.display='none';
+      if(lb) lb.style.display='block';
 
       // First: read existing data
       db.ref('rjaca').once('value').then(function(snap){
@@ -1670,7 +1676,7 @@ loadData();
 
         // Real-time listener
         db.ref('rjaca').on('value', function(snap){
-          if(!snap.exists() || !S.user) return;
+          if(!snap.exists()) return;
           var d = snap.val();
           if(JSON.stringify(d) === JSON.stringify(S.data)) return;
           S.data = d;
