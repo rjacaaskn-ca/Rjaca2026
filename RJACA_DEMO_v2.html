@@ -308,64 +308,7 @@ table.xtbl tbody td.wrap{white-space:normal;min-width:160px;max-width:220px;}
 @media(max-width:500px){.chat-sidebar{width:60px;}.chat-room-name,.chat-room-sub{display:none;}.chat-sidebar-title{display:none;}}
 
 </style>
-  <!-- Firebase: dynamic load to ensure SDK ready before init -->
-  <script>
-    function _loadScript(src, cb){
-      var s=document.createElement('script');
-      s.src=src;
-      s.onload=cb;
-      s.onerror=function(){ console.warn('Failed to load: '+src); cb(); };
-      document.head.appendChild(s);
-    }
 
-    function _initFirebase(){
-      try {
-        var cfg={
-          apiKey:"AIzaSyAan0SB_IUwxBBMrePrs0NJtm3UxAsYnYU",
-          authDomain:"rjacaoffice2026.firebaseapp.com",
-          databaseURL:"https://rjacaoffice2026-default-rtdb.firebaseio.com",
-          projectId:"rjacaoffice2026",
-          storageBucket:"rjacaoffice2026.firebasestorage.app",
-          messagingSenderId:"735397174133",
-          appId:"1:735397174133:web:e880eaab35ea1471b4513c"
-        };
-        if(typeof firebase==='undefined') throw new Error('firebase not defined');
-        if(!firebase.apps.length) firebase.initializeApp(cfg);
-        window._fbDB=firebase.database();
-        window._fbConnected=true;
-        // Sync from Firebase
-        window._fbDB.ref('rjaca').once('value').then(function(snap){
-          if(snap.exists()){
-            S.data=snap.val();
-            localStorage.setItem('rjaca-demo',JSON.stringify(S.data));
-            if(S.page) renderCurrentPage();
-            updateBadges();
-          }
-          // Real-time listener
-          window._fbDB.ref('rjaca').on('value',function(snap){
-            if(!snap.exists()||!S.user) return;
-            var d=snap.val();
-            if(JSON.stringify(d)===JSON.stringify(S.data)) return;
-            S.data=d;
-            localStorage.setItem('rjaca-demo',JSON.stringify(d));
-            if(S.page) renderCurrentPage();
-            updateBadges();
-            if(typeof updateChatBadge==='function') updateChatBadge();
-          });
-        }).catch(function(e){ console.warn('Firebase read failed:',e); });
-      } catch(e){
-        console.warn('Firebase init failed:',e);
-        window._fbConnected=false;
-      }
-    }
-
-    // Load app SDK first, then database SDK, then init
-    _loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function(){
-      _loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js', function(){
-        _initFirebase();
-      });
-    });
-  </script>
 </head>
 <body>
 
@@ -538,9 +481,9 @@ function loadData(){
 }
 function saveLocal(){
   localStorage.setItem('rjaca-demo',JSON.stringify(S.data));
-  // Save to Firebase
-  if(window._fbConnected && window._fbDB && S.data){
-    try{ window._fbDB.ref('rjaca').set(JSON.parse(JSON.stringify(S.data))); }catch(e){}
+  if(window._FBDB && S.data){
+    try{ window._FBDB.ref('rjaca').set(JSON.parse(JSON.stringify(S.data))); }
+    catch(e){ console.warn('FB save:',e); }
   }
 }
 function empList(activeOnly=true){return Object.entries(S.data.employees||{}).filter(([,e])=>!activeOnly||(e.active!==false)).map(([code,e])=>({code,...e})).sort((a,b)=>a.name.localeCompare(b.name));}
@@ -1667,8 +1610,70 @@ function fmtMonth(ym){
 }
 
 // Boot
-// Boot
+// Boot from localStorage immediately
 loadData();
+
+// Firebase — load SDK then connect
+(function(){
+  var FB_CFG = {
+    apiKey:"AIzaSyAan0SB_IUwxBBMrePrs0NJtm3UxAsYnYU",
+    authDomain:"rjacaoffice2026.firebaseapp.com",
+    databaseURL:"https://rjacaoffice2026-default-rtdb.firebaseio.com",
+    projectId:"rjacaoffice2026",
+    storageBucket:"rjacaoffice2026.firebasestorage.app",
+    messagingSenderId:"735397174133",
+    appId:"1:735397174133:web:e880eaab35ea1471b4513c"
+  };
+
+  function loadJS(src, cb){
+    var s=document.createElement('script');
+    s.src=src; s.async=true;
+    s.onload=cb;
+    s.onerror=function(){ console.warn('Failed:',src); };
+    document.head.appendChild(s);
+  }
+
+  function startFirebase(){
+    try {
+      if(!firebase.apps.length) firebase.initializeApp(FB_CFG);
+      var db = firebase.database();
+      window._FBDB = db;
+      console.log('✅ Firebase connected');
+
+      // First: read existing data
+      db.ref('rjaca').once('value').then(function(snap){
+        if(snap.exists()){
+          S.data = snap.val();
+          localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
+          if(S.page){ renderCurrentPage(); updateBadges(); }
+          console.log('✅ Firebase data loaded');
+        } else {
+          // No data yet — push current data up
+          db.ref('rjaca').set(JSON.parse(JSON.stringify(S.data)));
+          console.log('✅ Firebase initialized with local data');
+        }
+
+        // Real-time listener
+        db.ref('rjaca').on('value', function(snap){
+          if(!snap.exists() || !S.user) return;
+          var d = snap.val();
+          if(JSON.stringify(d) === JSON.stringify(S.data)) return;
+          S.data = d;
+          localStorage.setItem('rjaca-demo', JSON.stringify(d));
+          if(S.page){ renderCurrentPage(); updateBadges(); }
+          if(typeof updateChatBadge==='function') updateChatBadge();
+        });
+      }).catch(function(e){ console.warn('Firebase read error:',e); });
+
+    } catch(e){ console.warn('Firebase start error:',e); }
+  }
+
+  loadJS('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function(){
+    loadJS('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js', function(){
+      startFirebase();
+    });
+  });
+})();
 </script>
 </body>
 </html>
