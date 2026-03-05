@@ -1264,6 +1264,8 @@ window.editTask=function(id){openTaskModal(id);};
 window.saveTask=function(){
   const client=document.getElementById('tClient').value.trim();const title=document.getElementById('tTitle').value.trim();
   if(!client||!title){toast('Client name and description are required','err');return;}
+  if(!S.data.tasks) S.data.tasks={};
+  if(!S.data.settings) S.data.settings={};
   const status=document.getElementById('tStatus').value;
   const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:S.user.code,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
   if(S.editTaskId){t.createdBy=S.data.tasks[S.editTaskId].createdBy;t.createdAt=S.data.tasks[S.editTaskId].createdAt;S.data.tasks[S.editTaskId]=t;toast('Task updated ✓','ok');}
@@ -1668,6 +1670,13 @@ loadData();
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           console.log('✅ Firebase data loaded');
+          // Ensure all required objects exist
+          if(!S.data.tasks) S.data.tasks={};
+          if(!S.data.employees) S.data.employees={};
+          if(!S.data.settings) S.data.settings={};
+          if(!S.data.categories) S.data.categories={};
+          if(!S.data.loginLog) S.data.loginLog={};
+          if(!S.data.messages) S.data.messages={};
         } else {
           // No data yet — push current data up
           db.ref('rjaca').set(JSON.parse(JSON.stringify(S.data)));
@@ -1680,7 +1689,12 @@ loadData();
           var d = snap.val();
           if(JSON.stringify(d) === JSON.stringify(S.data)) return;
           S.data = d;
-          localStorage.setItem('rjaca-demo', JSON.stringify(d));
+          if(!S.data.tasks) S.data.tasks={};
+          if(!S.data.employees) S.data.employees={};
+          if(!S.data.settings) S.data.settings={};
+          if(!S.data.categories) S.data.categories={};
+          if(!S.data.loginLog) S.data.loginLog={};
+          localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           if(typeof updateChatBadge==='function') updateChatBadge();
         });
