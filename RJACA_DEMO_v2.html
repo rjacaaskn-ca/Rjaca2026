@@ -479,10 +479,25 @@ function loadData(){
   S.data=saved?JSON.parse(saved):JSON.parse(JSON.stringify(SEED));
   if(!saved)saveLocal();
 }
+function fbSanitize(obj){
+  // Firebase keys cannot contain . # $ / [ ]
+  if(typeof obj !== 'object' || obj === null) return obj;
+  if(Array.isArray(obj)) return obj.map(fbSanitize);
+  var clean = {};
+  Object.keys(obj).forEach(function(k){
+    var sk = k.replace(/[.#$/\[\]]/g, '_');
+    clean[sk] = fbSanitize(obj[k]);
+  });
+  return clean;
+}
+
 function saveLocal(){
   localStorage.setItem('rjaca-demo',JSON.stringify(S.data));
   if(window._FBDB && S.data){
-    try{ window._FBDB.ref('rjaca').set(JSON.parse(JSON.stringify(S.data))); }
+    try{
+      var cleanData = fbSanitize(JSON.parse(JSON.stringify(S.data)));
+      window._FBDB.ref('rjaca').set(cleanData);
+    }
     catch(e){ console.warn('FB save:',e); }
   }
 }
