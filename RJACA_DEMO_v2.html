@@ -1253,7 +1253,10 @@ function populateAssignList(selCodes=[]){
 window.toggleAssign=function(code,el){if(S.selectedAssignees.includes(code)){S.selectedAssignees=S.selectedAssignees.filter(c=>c!==code);el.classList.remove('sel');el.querySelector('.acheck').textContent='';}else{S.selectedAssignees.push(code);el.classList.add('sel');el.querySelector('.acheck').textContent='✓';}};
 
 window.openTaskModal=function(id=null){
-  S.editTaskId=id;document.getElementById('taskModalTitle').textContent=id?'Edit Task':'New Task';populateCatDDs();
+  S.editTaskId=id;
+  // Freeze original assignedBy before modal opens
+  S.frozenAssignedBy = id ? (S.data.tasks[id]?.assignedBy || null) : null;
+  document.getElementById('taskModalTitle').textContent=id?'Edit Task':'New Task';populateCatDDs();
   if(id){const t=S.data.tasks[id];if(t){document.getElementById('tClient').value=t.client;document.getElementById('tTitle').value=t.title;document.getElementById('tCat').value=t.cat;updateSubCats();document.getElementById('tSub').value=t.sub||'';document.getElementById('tPri').value=t.pri;document.getElementById('tStatus').value=t.status;document.getElementById('tStart').value=t.start||'';document.getElementById('tTarget').value=t.target||'';document.getElementById('tComplete').value=t.complete||'';document.getElementById('tNotes').value=t.notes||'';document.getElementById('completeDateGrp').style.display=t.status==='Completed'?'block':'none';populateAssignList(t.assignees||[]);}}
   else{['tClient','tTitle','tNotes'].forEach(i=>document.getElementById(i).value='');document.getElementById('tPri').value='Medium';document.getElementById('tStatus').value='Not Yet Commenced';document.getElementById('tStart').value=td();document.getElementById('tTarget').value='';document.getElementById('tComplete').value='';document.getElementById('completeDateGrp').style.display='none';populateAssignList([]);}
   openModal('taskModal');
@@ -1267,10 +1270,10 @@ window.saveTask=function(){
   if(!S.data.settings) S.data.settings={};
   const status=document.getElementById('tStatus').value;
   const _origTask = S.editTaskId ? S.data.tasks[S.editTaskId] : null;
-  const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:_origTask?_origTask.assignedBy:S.user.code,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
+  const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:S.editTaskId?(S.frozenAssignedBy||S.user.code):S.user.code,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
   if(S.editTaskId){t.createdBy=_origTask.createdBy;t.createdAt=_origTask.createdAt;S.data.tasks[S.editTaskId]=t;toast('Task updated ✓','ok');}
   else{const num=String(S.data.settings.nextTaskNum||9).padStart(3,'0');const id='TSK-'+num;t.id=id;t.createdBy=S.user.name;t.createdAt=now();S.data.tasks[id]=t;S.data.settings.nextTaskNum=(S.data.settings.nextTaskNum||9)+1;toast('Task '+id+' created ✓','ok');}
-  saveLocal();closeModal('taskModal');renderCurrentPage();
+  S.frozenAssignedBy=null;saveLocal();closeModal('taskModal');renderCurrentPage();
 };
 
 // ====== UPDATE MODAL ======
