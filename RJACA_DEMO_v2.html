@@ -531,10 +531,12 @@ window.doLogin=function(){
 };
 
 function recordLogin(code){
-  const logKey=td()+'_'+code;
   if(!S.data.loginLog)S.data.loginLog={};
   const now_ms=Date.now();
   S.sessionStartMs=now_ms;
+  // Unique key per session — date + code + timestamp
+  const logKey=td()+'_'+code+'_'+now_ms;
+  S.sessionLogKey=logKey; // store for logout
   const loginTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   S.data.loginLog[logKey]={date:td(),code,name:getEmp(code)?.name||code,desig:getEmp(code)?.desig||'',login:loginTime,loginMs:now_ms,logout:'',logoutMs:0,durationMins:0};
   saveLocal();
@@ -563,7 +565,8 @@ function getMonthlyRank(code){
 }
 
 window.doLogout=function(){
-  const logKey=td()+'_'+S.user.code;
+  // Use session-specific key stored at login
+  const logKey=S.sessionLogKey||(td()+'_'+S.user.code+'_'+S.sessionStartMs);
   const nowMs=Date.now();
   const logEntry=S.data.loginLog?.[logKey];
   const logoutTime=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -1263,8 +1266,9 @@ window.saveTask=function(){
   if(!S.data.tasks) S.data.tasks={};
   if(!S.data.settings) S.data.settings={};
   const status=document.getElementById('tStatus').value;
-  const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:S.user.code,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
-  if(S.editTaskId){t.createdBy=S.data.tasks[S.editTaskId].createdBy;t.createdAt=S.data.tasks[S.editTaskId].createdAt;S.data.tasks[S.editTaskId]=t;toast('Task updated ✓','ok');}
+  const _origTask = S.editTaskId ? S.data.tasks[S.editTaskId] : null;
+  const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:_origTask?_origTask.assignedBy:S.user.code,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
+  if(S.editTaskId){t.createdBy=_origTask.createdBy;t.createdAt=_origTask.createdAt;S.data.tasks[S.editTaskId]=t;toast('Task updated ✓','ok');}
   else{const num=String(S.data.settings.nextTaskNum||9).padStart(3,'0');const id='TSK-'+num;t.id=id;t.createdBy=S.user.name;t.createdAt=now();S.data.tasks[id]=t;S.data.settings.nextTaskNum=(S.data.settings.nextTaskNum||9)+1;toast('Task '+id+' created ✓','ok');}
   saveLocal();closeModal('taskModal');renderCurrentPage();
 };
@@ -1365,10 +1369,15 @@ window.toast=function(msg,type='inf'){const t=document.getElementById('toast');t
 let S_chatRoom = 'group'; // current room: 'group' or 'dm_CODE'
 let S_chatInterval = null;
 
+function getDmRoomId(codeA, codeB){
+  // Always same room for both parties — sort alphabetically
+  return 'dm_' + [codeA, codeB].sort().join('_');
+}
+
 function getChatRooms(){
   // Returns list of rooms: group + one per other active employee
   const others = empList(true).filter(e=>e.code!==S.user.code);
-  return [{id:'group',name:'Group Chat',sub:'Everyone',isGroup:true}, ...others.map(e=>({id:'dm_'+e.code,name:e.name,sub:e.desig,isGroup:false,code:e.code}))];
+  return [{id:'group',name:'Group Chat',sub:'Everyone',isGroup:true}, ...others.map(e=>({id:getDmRoomId(S.user.code,e.code),name:e.name,sub:e.desig,isGroup:false,code:e.code}))];
 }
 
 function getChatMessages(roomId){
@@ -1501,7 +1510,7 @@ function updateChatBadge(){
 }
 
 window.openRoom = function(roomId){
-  S_chatRoom = roomId;
+  S_chatRoom = roomId; // roomId already uses getDmRoomId format from getChatRooms
   markRead(roomId);
   renderChatSidebar();
   renderChatHeader();
