@@ -705,16 +705,16 @@ function updateBadges(){
 
 // ====== DASHBOARD ======
 function renderDash(){
-  const tasks=tList();const active=tasks.filter(t=>['Not Yet Commenced','In Progress','Data Pending'].includes(t.status));const done=tasks.filter(t=>t.status==='Completed');const od=tasks.filter(t=>isOD(t));const hi=tasks.filter(t=>t.pri==='High'&&!['Completed','Abandoned'].includes(t.status));
+  const tasks=tList().filter(t=>!t.deleted);const active=tasks.filter(t=>['Not Yet Commenced','In Progress','Data Pending'].includes(t.status));const done=tasks.filter(t=>t.status==='Completed');const od=tasks.filter(t=>isOD(t));const hi=tasks.filter(t=>t.pri==='High'&&!['Completed','Abandoned'].includes(t.status));
   document.getElementById('dashStats').innerHTML=[['Total',tasks.length,''],['Active',active.length,''],['Overdue',od.length,od.length?'color:var(--danger)':''],['Completed',done.length,'color:var(--ok)'],['High Pri',hi.length,hi.length?'color:var(--warn)':''],['Staff',empList().length,'']].map(([l,v,s])=>'<div class="sc"><div class="sv" style="'+s+'">'+v+'</div><div class="sl">'+l+'</div></div>').join('');
   const mgrs=empList().filter(e=>getAccess(e.desig)==='manager');
   document.getElementById('mgrCards').innerHTML=mgrs.map(m=>{
     const teamCodes=empList().map(e=>e.code).filter(c=>getEmp(c)?.mgr===m.name||c===m.code);
-    const mt=tasks.filter(t=>t.assignees?.some(a=>teamCodes.includes(a)));
+    const mt=tasks.filter(t=>!t.deleted&&t.assignees?.some(a=>teamCodes.includes(a)));
     const nyc=mt.filter(t=>t.status==='Not Yet Commenced').length;const ip=mt.filter(t=>t.status==='In Progress').length;const dp=mt.filter(t=>t.status==='Data Pending').length;const od=mt.filter(t=>isOD(t)).length;
     return '<div class="mgr-card"><div class="mgr-head"><div class="eav" style="width:36px;height:36px;font-size:12px">'+ini(m.name)+'</div><div><div style="font-weight:700;font-size:13px;color:#1a2340">'+m.name+'</div><div style="font-size:10px;color:var(--muted)">'+m.desig+' · '+m.code+'</div></div></div><div class="mgr-stats"><div class="msc"><div class="msv">'+nyc+'</div><div class="msl">Not Started</div></div><div class="msc"><div class="msv" style="color:var(--gold2)">'+ip+'</div><div class="msl">In Progress</div></div><div class="msc"><div class="msv" style="color:var(--warn)">'+dp+'</div><div class="msl">Data Pending</div></div><div class="msc"><div class="msv" style="color:var(--danger)">'+od+'</div><div class="msl">Overdue</div></div></div></div>';
   }).join('')||'<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No managers found</div></div>';
-  const odList=tasks.filter(t=>isOD(t));
+  const odList=tasks.filter(t=>!t.deleted&&isOD(t));
   document.getElementById('overdueList').innerHTML=odList.length?taskTableHTML(odList,true,false):'<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No overdue tasks</div></div>';
 }
 
@@ -1256,6 +1256,7 @@ window.openTaskModal=function(id=null){
   S.editTaskId=id;
   // Freeze original assignedBy before modal opens
   S.frozenAssignedBy = id ? (S.data.tasks[id]?.assignedBy || null) : null;
+  if(id) console.log('🔍 editTask:', id, '| assignedBy in data:', S.data.tasks[id]?.assignedBy, '| frozen:', S.frozenAssignedBy);
   document.getElementById('taskModalTitle').textContent=id?'Edit Task':'New Task';populateCatDDs();
   if(id){const t=S.data.tasks[id];if(t){document.getElementById('tClient').value=t.client;document.getElementById('tTitle').value=t.title;document.getElementById('tCat').value=t.cat;updateSubCats();document.getElementById('tSub').value=t.sub||'';document.getElementById('tPri').value=t.pri;document.getElementById('tStatus').value=t.status;document.getElementById('tStart').value=t.start||'';document.getElementById('tTarget').value=t.target||'';document.getElementById('tComplete').value=t.complete||'';document.getElementById('tNotes').value=t.notes||'';document.getElementById('completeDateGrp').style.display=t.status==='Completed'?'block':'none';populateAssignList(t.assignees||[]);}}
   else{['tClient','tTitle','tNotes'].forEach(i=>document.getElementById(i).value='');document.getElementById('tPri').value='Medium';document.getElementById('tStatus').value='Not Yet Commenced';document.getElementById('tStart').value=td();document.getElementById('tTarget').value='';document.getElementById('tComplete').value='';document.getElementById('completeDateGrp').style.display='none';populateAssignList([]);}
@@ -1270,7 +1271,9 @@ window.saveTask=function(){
   if(!S.data.settings) S.data.settings={};
   const status=document.getElementById('tStatus').value;
   const _origTask = S.editTaskId ? S.data.tasks[S.editTaskId] : null;
-  const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:S.editTaskId?(S.frozenAssignedBy||S.user.code):S.user.code,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
+  const _finalAssignedBy = S.editTaskId?(S.frozenAssignedBy||S.user.code):S.user.code;
+  console.log('💾 saveTask | editId:', S.editTaskId, '| frozenAssignedBy:', S.frozenAssignedBy, '| final:', _finalAssignedBy);
+  const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:_finalAssignedBy,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
   if(S.editTaskId){t.createdBy=_origTask.createdBy;t.createdAt=_origTask.createdAt;S.data.tasks[S.editTaskId]=t;toast('Task updated ✓','ok');}
   else{const num=String(S.data.settings.nextTaskNum||9).padStart(3,'0');const id='TSK-'+num;t.id=id;t.createdBy=S.user.name;t.createdAt=now();S.data.tasks[id]=t;S.data.settings.nextTaskNum=(S.data.settings.nextTaskNum||9)+1;toast('Task '+id+' created ✓','ok');}
   S.frozenAssignedBy=null;saveLocal();closeModal('taskModal');renderCurrentPage();
