@@ -509,12 +509,19 @@ let loginTab='admin';
 window.setTab=function(tab,el){loginTab=tab;document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));el.classList.add('on');document.getElementById('adminFields').style.display=tab==='admin'?'block':'none';document.getElementById('userFields').style.display=tab==='user'?'block':'none';};
 window.previewName=function(code){const p=document.getElementById('namePreview');const emp=getEmp(code);if(emp&&emp.active){p.textContent='👤 '+emp.name+' — '+emp.desig;p.classList.add('show');}else{p.classList.remove('show');}};
 
+function isAlreadyLoggedIn(code){
+  // Check if there is any active session (no logout) for this code today
+  const logs = Object.values(S.data.loginLog||{});
+  return logs.some(l => l.code===code && !l.logout && l.loginMs && (Date.now()-l.loginMs) < 24*60*60*1000);
+}
+
 window.doLogin=function(){
   loadData();
   if(loginTab==='admin'){
     const u=document.getElementById('adminUser').value.trim();
     const p=document.getElementById('adminPass').value;
     if(u==='admin'&&p===(S.data.settings?.adminPass||'admin@123')){
+      if(isAlreadyLoggedIn('RJACA-1')){toast('Admin is already logged in on another device!','err');return;}
       S.user={code:'RJACA-1',name:'Rohit Jain',desig:'Admin',access:'admin'};
       recordLogin('RJACA-1');enterApp();
     }else toast('Invalid admin credentials','err');
@@ -525,6 +532,7 @@ window.doLogin=function(){
     if(!emp){toast('Code not found','err');return;}
     if(!emp.active){toast('Account deactivated. Contact Admin.','err');return;}
     if(pass!==emp.pass){toast('Incorrect password','err');return;}
+    if(isAlreadyLoggedIn(code)){toast(emp.name+' is already logged in on another device!','err');return;}
     S.user={code,name:emp.name,desig:emp.desig,access:getAccess(emp.desig),mgr:emp.mgr};
     recordLogin(code);enterApp();
   }
@@ -1136,9 +1144,13 @@ function eCardHTML(e,active){
   const c=e.code;
   const isAdm=S.user.access==='admin';
   let btns='';
+  const hasActiveSession = Object.values(S.data.loginLog||{}).some(l=>l.code===c&&!l.logout&&l.loginMs&&(Date.now()-l.loginMs)<24*60*60*1000);
   if(active){
     btns='<button class="btn-pri" style="font-size:10px;padding:5px 8px" data-code="'+c+'" data-action="edit">Edit</button>'
         +'<button class="btn-danger" style="font-size:10px;padding:5px 8px" data-code="'+c+'" data-action="deact">🚫 Deactivate</button>';
+    if(isAdm&&hasActiveSession){
+      btns+='<button style="font-size:10px;padding:5px 8px;background:var(--warn);color:#fff;border:none;border-radius:7px;cursor:pointer" data-code="'+c+'" data-action="forcelogout">⏏ Force Logout</button>';
+    }
   }else{
     btns='<button class="btn-success" style="font-size:10px;padding:5px 8px" data-code="'+c+'" data-action="react">✅ Reactivate</button>';
   }
@@ -1296,6 +1308,28 @@ window.openEmpModal=function(){S.editEmpId=null;document.getElementById('empModa
 window.editEmp=function(code){S.editEmpId=code;const e=getEmp(code);document.getElementById('empModalTitle').textContent='Edit Employee';document.getElementById('eName').value=e.name;document.getElementById('eWA').value=e.wa||'';document.getElementById('ePass').value=e.pass;document.getElementById('eDesig').value=e.desig;openModal('empModal');};
 window.saveEmp=function(){const name=document.getElementById('eName').value.trim();if(!name){toast('Name required','err');return;}const desig=document.getElementById('eDesig').value;const wa=document.getElementById('eWA').value.trim();const pass=document.getElementById('ePass').value||'emp@123';const access=getAccess(desig);if(S.editEmpId){S.data.employees[S.editEmpId]={...S.data.employees[S.editEmpId],name,desig,access,wa,pass};toast(name+' updated ✓','ok');}else{const num=S.data.settings.nextEmpNum||9;const code='RJACA-'+num;S.data.employees[code]={name,desig,access,wa,pass,active:true,joined:td()};S.data.settings.nextEmpNum=num+1;toast(name+' added as '+code+' ✓','ok');}saveLocal();closeModal('empModal');renderCurrentPage();};
 window.deactEmp=function(code){const e=getEmp(code);S.data.employees[code].active=false;saveLocal();toast(e.name+' deactivated. Go to Deactivated section to undo.','inf');renderCurrentPage();};
+
+window.forceLogout=function(code){
+  const e=getEmp(code);
+  const logs=Object.values(S.data.loginLog||{});
+  let cleared=0;
+  logs.forEach(function(l){
+    if(l.code===code && !l.logout && l.loginMs){
+      const key=Object.keys(S.data.loginLog).find(k=>S.data.loginLog[k]===l);
+      if(key){
+        const nowMs=Date.now();
+        const sessionMins=Math.floor((nowMs-l.loginMs)/60000);
+        S.data.loginLog[key].logout='Force Logout';
+        S.data.loginLog[key].logoutMs=nowMs;
+        S.data.loginLog[key].durationMins=sessionMins;
+        cleared++;
+      }
+    }
+  });
+  if(cleared>0){saveLocal();toast(e.name+' ka session force logout ho gaya ✓','ok');}
+  else{toast(e.name+' ki koi active session nahi hai','inf');}
+  renderCurrentPage();
+};
 window.reactEmp=function(code){const e=getEmp(code);S.data.employees[code].active=true;saveLocal();toast(e.name+' reactivated ✓','ok');renderCurrentPage();};
 
 // ====== DELETE / RETRIEVE TASKS (Admin only) ======
@@ -1371,6 +1405,7 @@ document.addEventListener('click',function(e){
   if(action==='edit')editEmp(code);
   else if(action==='deact')deactEmp(code);
   else if(action==='react')reactEmp(code);
+  else if(action==='forcelogout')forceLogout(code);
   else if(action==='pass'){const pw=document.getElementById('epw-'+code);if(pw)pw.style.display=pw.style.display==='none'?'block':'none';}
   else if(action==='changepass')openPassModal(code);
 });
