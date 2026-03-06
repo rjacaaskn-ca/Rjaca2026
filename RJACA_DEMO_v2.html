@@ -550,7 +550,13 @@ function fmtHrs(mins){if(mins<60)return mins+'m';const h=Math.floor(mins/60);con
 function getMonthlyData(code){
   const thisMonth=td().substring(0,7); // YYYY-MM
   const logs=Object.values(S.data.loginLog||{}).filter(l=>l.code===code&&(l.date||'').startsWith(thisMonth));
-  const totalMins=logs.reduce((s,l)=>s+(l.durationMins||0),0);
+  let totalMins=logs.reduce((s,l)=>{
+    // If active session (no logout yet), calculate live minutes
+    if(!l.logout && l.loginMs){
+      return s + Math.floor((Date.now()-l.loginMs)/60000);
+    }
+    return s+(l.durationMins||0);
+  },0);
   const days=new Set(logs.map(l=>l.date)).size;
   return{totalMins,days};
 }
