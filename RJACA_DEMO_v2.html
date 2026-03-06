@@ -708,6 +708,7 @@ function buildTabs(){
      +'<button class="tab" onclick="goPage(\'mytasks\',this)"><span class="ti">👁</span>Staff View</button>'
      +'<button class="tab" onclick="goPage(\'completed\',this)"><span class="ti">☑️</span>Completed</button>'
      +'<button class="tab" onclick="goPage(\'categories\',this)"><span class="ti">📁</span>Categories</button>'
+     +'<button class="tab" onclick="goPage(\'attendance\',this)"><span class="ti">🗓</span>Attendance</button>'
      +'<button class="tab" onclick="goPage(\'chat\',this)"><span class="ti">💬</span>Chat<span class="tbadge" id="tbChat" style="display:none">0</span></button>'
      +'<button class="tab" onclick="goPage(\'settings\',this)"><span class="ti">⚙️</span>Settings</button>';
   }else{
@@ -715,6 +716,7 @@ function buildTabs(){
     h='<button class="tab on" onclick="goPage(\'assignedby\',this)"><span class="ti">📤</span>Assigned By Me<span class="tbadge g" id="tbAby">0</span></button>'
      +'<button class="tab" onclick="goPage(\'assignedto\',this)"><span class="ti">📥</span>Assigned To Me<span class="tbadge" id="tbAto">0</span></button>'
      +'<button class="tab" onclick="goPage(\'completed\',this)"><span class="ti">☑️</span>Completed</button>'
+     +'<button class="tab" onclick="goPage(\'attendance\',this)"><span class="ti">🗓</span>Attendance</button>'
      +'<button class="tab" onclick="goPage(\'chat\',this)"><span class="ti">💬</span>Chat<span class="tbadge" id="tbChat" style="display:none">0</span></button>'
      +'<button class="tab" onclick="goPage(\'settings\',this)"><span class="ti">⚙️</span>Settings</button>';
   }
@@ -906,7 +908,7 @@ function taskTableHTML(list, canEdit, showCompleted=false){
       +'<td><span class="tbl-status '+stCls+'">'+t.status+'</span></td>'
       +'<td><span class="xdate">'+(t.start?fmtD(t.start):'—')+'</span></td>'
       +'<td><span class="xdate '+(od?'od':'')+'">'+fmtD(t.target)+'</span>'+(t.complete&&showCompleted?'<br><span style="font-size:9px;color:var(--ok)">✅ '+fmtD(t.complete)+'</span>':'')+'</td>'
-      +'<td class="tbl-upd">'+(t.updatedBy?t.updatedBy.split(' ')[0]:'—')+(t.notes?'<br><span style="color:var(--muted)">'+t.notes.substring(0,20)+'</span>':'')+'</td>'
+      +'<td class="tbl-upd">'+(t.updatedBy?t.updatedBy.split(' ')[0]:'—')+(t.notes?'<br><span style="color:var(--muted);font-size:10px">'+t.notes+'</span>':'')+'</td>'
       +'</tr>';
   }).join('');
   return '<div class="tbl-wrap"><table class="xtbl">'
@@ -1008,15 +1010,15 @@ function renderMyTasks(){
     +'</div>'
     +'</div>';
 
-  // Live session timer — only for own dashboard
+  // Live session timer — real-time every second
   if(S.heroInterval)clearInterval(S.heroInterval);
   if(isViewingSelf&&S.sessionStartMs){
     function tickSession(){
       const el=document.getElementById('liveSessionVal');
-      if(el)el.textContent=fmtDur(Date.now()-S.sessionStartMs);
+      if(el) el.textContent=fmtDur(Date.now()-S.sessionStartMs);
     }
     tickSession();
-    S.heroInterval=setInterval(tickSession,10000);
+    S.heroInterval=setInterval(tickSession,1000);
   }
 
   document.getElementById('activeCount').textContent=active.length;
@@ -1630,7 +1632,7 @@ window.sendChat = function(){
 };
 
 
-// ====== ATTENDANCE REPORT (Admin only) ======
+// ====== ATTENDANCE REPORT (All roles) ======
 function renderAttendance(){
   const logs = Object.values(S.data.loginLog||{});
   const emps = empList(false); // all employees including inactive
@@ -1638,7 +1640,7 @@ function renderAttendance(){
   const thisMonth = td().substring(0,7);
 
   // Filter state
-  if(!S.attFilter) S.attFilter = { month: thisMonth, emp: 'all' };
+  if(!S.attFilter) S.attFilter = { month: thisMonth, emp: S.user.access==='executive'?S.user.code:'all' };
 
   // Filter row
   const monthOpts = months.length ? months.map(m=>`<option value="${m}" ${m===S.attFilter.month?'selected':''}>${fmtMonth(m)}</option>`).join('') : `<option value="${thisMonth}">${fmtMonth(thisMonth)}</option>`;
