@@ -397,6 +397,13 @@ table.xtbl tbody td.wrap{white-space:normal;min-width:160px;max-width:220px;}
       <div id="attSummaryCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
       <div id="attTable"></div>
     </div>
+    <div class="pg" id="pg-noticeboard">
+      <div class="shd" style="align-items:center">
+        <span class="stitle">📌 Notice Board</span>
+        <span id="addNoticeBtn"></span>
+      </div>
+      <div id="noticeList"></div>
+    </div>
     <div class="pg" id="pg-settings"><div id="settingsList"></div></div>
     <div class="pg" id="pg-chat">
       <div class="chat-wrap">
@@ -686,6 +693,11 @@ function enterApp(){
   if(S.clockInterval)clearInterval(S.clockInterval);
   S.clockInterval=setInterval(tickClock,1000);
   buildTabs();
+  // Show deadline reminder after data is ready
+  S.reminderShown = false;
+  setTimeout(function(){
+    if(!S.reminderShown){ S.reminderShown=true; showDeadlineReminder(); }
+  }, 1500);
 }
 
 function buildTabs(){
@@ -702,6 +714,7 @@ function buildTabs(){
      +'<button class="tab" onclick="goPage(\'productivity\',this)"><span class="ti">🏆</span>Reports</button>'
      +'<button class="tab" onclick="goPage(\'categories\',this)"><span class="ti">📁</span>Categories</button>'
      +'<button class="tab" onclick="goPage(\'chat\',this)"><span class="ti">💬</span>Chat<span class="tbadge" id="tbChat" style="display:none">0</span></button>'
+     +'<button class="tab" onclick="goPage(\'noticeboard\',this)"><span class="ti">📌</span>Notice Board<span class="tbadge" id="tbNotice" style="display:none">0</span></button>'
      +'<button class="tab" onclick="goPage(\'settings\',this)"><span class="ti">⚙️</span>Settings</button>';
   }else if(u.access==='manager'){
     h='<button class="tab on" onclick="goPage(\'assignedby\',this)"><span class="ti">📤</span>Assigned By Me<span class="tbadge g" id="tbAby">0</span></button>'
@@ -711,6 +724,7 @@ function buildTabs(){
      +'<button class="tab" onclick="goPage(\'categories\',this)"><span class="ti">📁</span>Categories</button>'
      +'<button class="tab" onclick="goPage(\'attendance\',this)"><span class="ti">🗓</span>Attendance</button>'
      +'<button class="tab" onclick="goPage(\'chat\',this)"><span class="ti">💬</span>Chat<span class="tbadge" id="tbChat" style="display:none">0</span></button>'
+     +'<button class="tab" onclick="goPage(\'noticeboard\',this)"><span class="ti">📌</span>Notice Board<span class="tbadge" id="tbNotice" style="display:none">0</span></button>'
      +'<button class="tab" onclick="goPage(\'settings\',this)"><span class="ti">⚙️</span>Settings</button>';
   }else{
     // Executive: Assigned By Me + Assigned To Me + Completed + Settings
@@ -719,6 +733,7 @@ function buildTabs(){
      +'<button class="tab" onclick="goPage(\'completed\',this)"><span class="ti">☑️</span>Completed</button>'
      +'<button class="tab" onclick="goPage(\'attendance\',this)"><span class="ti">🗓</span>Attendance</button>'
      +'<button class="tab" onclick="goPage(\'chat\',this)"><span class="ti">💬</span>Chat<span class="tbadge" id="tbChat" style="display:none">0</span></button>'
+     +'<button class="tab" onclick="goPage(\'noticeboard\',this)"><span class="ti">📌</span>Notice Board<span class="tbadge" id="tbNotice" style="display:none">0</span></button>'
      +'<button class="tab" onclick="goPage(\'settings\',this)"><span class="ti">⚙️</span>Settings</button>';
   }
   tb.innerHTML=h;
@@ -750,6 +765,7 @@ function renderCurrentPage(){
   if(p==='categories')renderCategories();
   if(p==='settings')renderSettings();
   if(p==='attendance')renderAttendance();
+  if(p==='noticeboard')renderNoticeboard();
   if(p==='chat')renderChat();
   updateBadges();
 }
@@ -1740,6 +1756,105 @@ loadData();
 
 // Firebase — load SDK then connect
 
+
+// ====== NOTICE BOARD ======
+function renderNoticeboard(){
+  const isAdmin = S.user.access==='admin';
+  const addBtn = document.getElementById('addNoticeBtn');
+  if(addBtn) addBtn.innerHTML = isAdmin
+    ? '<button class="btn-pri" onclick="openNoticeModal()">+ Post Notice</button>'
+    : '';
+
+  const notices = Object.entries(S.data.notices||{})
+    .map(([id,n])=>({id,...n}))
+    .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+
+  if(!notices.length){
+    document.getElementById('noticeList').innerHTML='<div class="empty"><div class="empty-icon">📌</div><div class="empty-text">No notices yet</div></div>';
+    return;
+  }
+
+  let rows='';
+  notices.forEach(function(n){
+    const typeColor = {Urgent:'#e53e3e', Important:'#dd6b20', General:'#38a169'}[n.type]||'#666';
+    const typeEmoji = {Urgent:'🚨', Important:'⚠️', General:'📢'}[n.type]||'📌';
+    const delBtn = isAdmin ? '<button onclick="window._delNotice(this)" data-nid="'+n.id+'" style="border:none;background:none;color:#ccc;font-size:16px;cursor:pointer;padding:2px 4px;flex-shrink:0">\u{1F5D1}</button>' : '';
+    rows += '<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid '+typeColor+'">'
+      +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">'
+      +'<div style="flex:1">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+      +'<span style="font-size:11px;font-weight:700;color:'+typeColor+';text-transform:uppercase;letter-spacing:.5px">'+typeEmoji+' '+n.type+'</span>'
+      +'<span style="font-size:10px;color:var(--muted)">'+fmtDateTime(n.createdAt)+'</span>'
+      +'</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#1a2340;margin-bottom:5px">'+escapeHtml(n.title)+'</div>'
+      +'<div style="font-size:13px;color:#444;line-height:1.6;white-space:pre-wrap">'+escapeHtml(n.body)+'</div>'
+      +'<div style="font-size:10px;color:var(--muted);margin-top:6px">— '+n.postedBy+'</div>'
+      +'</div>'
+      +delBtn
+      +'</div></div>';
+  });
+  document.getElementById('noticeList').innerHTML=rows;
+}
+
+function fmtDateTime(str){
+  if(!str) return '';
+  try{
+    const d=new Date(str);
+    return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  }catch(e){ return str; }
+}
+
+window._delNotice=function(btn){ deleteNotice(btn.getAttribute('data-nid')); };
+window.deleteNotice=function(id){
+  if(S.user.access!=='admin') return;
+  delete S.data.notices[id];
+  saveLocal(); renderNoticeboard();
+  toast('Notice deleted','inf');
+};
+
+window.openNoticeModal=function(){
+  const existing=document.getElementById('noticeModalOverlay');
+  if(existing) existing.remove();
+  const div=document.createElement('div');
+  div.id='noticeModalOverlay';
+  div.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  div.innerHTML='<div style="background:#fff;border-radius:16px;padding:20px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:18px;font-weight:700;color:#966a00;margin-bottom:14px">📌 Post Notice</div>'
+    +'<div style="margin-bottom:10px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:600;display:block;margin-bottom:4px">Type</label>'
+    +'<select id="noticeType" class="fi"><option value="General">📢 General</option><option value="Important">⚠️ Important</option><option value="Urgent">🚨 Urgent</option></select></div>'
+    +'<div style="margin-bottom:10px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:600;display:block;margin-bottom:4px">Title *</label>'
+    +'<input id="noticeTitle" class="fi" placeholder="e.g. Office will remain closed on..."></div>'
+    +'<div style="margin-bottom:14px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:600;display:block;margin-bottom:4px">Message *</label>'
+    +'<textarea id="noticeBody" class="fi" rows="4" style="resize:vertical" placeholder="Type your message here..."></textarea></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button id="cancelNotice" style="flex:1;padding:11px;border:1px solid #ddd;border-radius:10px;background:#f5f5f5;font-size:13px;font-weight:600;cursor:pointer">Cancel</button>'
+    +'<button id="saveNotice" style="flex:1;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#966a00,#c4930a);color:#fff;font-size:13px;font-weight:700;cursor:pointer">Post Notice 📌</button>'
+    +'</div></div>';
+  document.body.appendChild(div);
+  document.getElementById('cancelNotice').onclick=function(){ div.remove(); };
+  document.getElementById('saveNotice').onclick=function(){
+    const title=document.getElementById('noticeTitle').value.trim();
+    const body=document.getElementById('noticeBody').value.trim();
+    const type=document.getElementById('noticeType').value;
+    if(!title||!body){ alert('Title and message required!'); return; }
+    if(!S.data.notices) S.data.notices={};
+    const id='NTC-'+Date.now();
+    S.data.notices[id]={title,body,type,postedBy:S.user.name,createdAt:new Date().toISOString()};
+    saveLocal(); div.remove();
+    toast('Notice posted ✓','ok');
+    renderNoticeboard();
+    updateNoticesBadge();
+  };
+};
+
+function updateNoticesBadge(){
+  const el=document.getElementById('tbNotice');
+  if(!el) return;
+  const count=Object.keys(S.data.notices||{}).length;
+  el.textContent=count;
+  el.style.display=count?'inline':'none';
+}
+
 // ====== WHATSAPP NOTIFICATIONS ======
 function waNum(code){
   const e=getEmp(code);
@@ -2003,7 +2118,9 @@ function showDeadlineReminder(){
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           console.log('✅ Firebase data loaded');
-          setTimeout(showDeadlineReminder, 800);
+          setTimeout(function(){
+            if(!S.reminderShown){ S.reminderShown=true; showDeadlineReminder(); }
+          }, 800);
         } else {
           window._fbWrite(S.data);
           console.log('✅ Local data pushed to Firebase');
@@ -2024,6 +2141,7 @@ function showDeadlineReminder(){
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           if(typeof updateChatBadge==='function') updateChatBadge();
+  if(typeof updateNoticesBadge==='function') updateNoticesBadge();
           console.log('🔄 Firebase: remote update received');
         });
 
