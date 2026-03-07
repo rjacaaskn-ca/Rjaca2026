@@ -631,6 +631,10 @@ function getMonthlyRank(code){
 }
 
 window.doLogout=function(){
+  // Show deadline reminder before logout
+  showDeadlineReminder(function(){ _doActualLogout(); });
+};
+function _doActualLogout(){
   // Use session-specific key stored at login
   const logKey=S.sessionLogKey||(td()+'_'+S.user.code+'_'+S.sessionStartMs);
   const nowMs=Date.now();
@@ -1959,7 +1963,7 @@ function showWAPrompt(type, taskId){
 
 
 // ====== DEADLINE REMINDER ======
-function showDeadlineReminder(){
+function showDeadlineReminder(onDone){
   const today = td();
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate()+1);
@@ -1979,7 +1983,7 @@ function showDeadlineReminder(){
   const dueToday = myTasks.filter(t=>t.target===today);
   const dueTomorrow = myTasks.filter(t=>t.target===tmrStr);
 
-  if(!overdue.length&&!dueToday.length&&!dueTomorrow.length) return;
+  if(!overdue.length&&!dueToday.length&&!dueTomorrow.length){ if(onDone) onDone(); return; }
 
   const existing=document.getElementById('deadlineReminderOverlay');
   if(existing) existing.remove();
@@ -2030,8 +2034,8 @@ function showDeadlineReminder(){
     +'<button id="dismissReminder" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#966a00,#c4930a);color:#fff;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px">Got it ✓</button>'
     +'</div>';
   document.body.appendChild(div);
-  document.getElementById('closeReminder').onclick=function(){ div.remove(); };
-  document.getElementById('dismissReminder').onclick=function(){ div.remove(); };
+  document.getElementById('closeReminder').onclick=function(){ div.remove(); if(onDone) onDone(); };
+  document.getElementById('dismissReminder').onclick=function(){ div.remove(); if(onDone) onDone(); };
 }
 
 (function(){
