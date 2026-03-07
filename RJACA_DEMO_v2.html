@@ -1338,6 +1338,8 @@ window.editTask=function(id){openTaskModal(id);};
 window.saveTask=function(){
   const client=document.getElementById('tClient').value.trim();const title=document.getElementById('tTitle').value.trim();
   if(!client||!title){toast('Client name and description are required','err');return;}
+  const tTarget=document.getElementById('tTarget').value;
+  if(!tTarget){toast('Target date is required','err');document.getElementById('tTarget').focus();return;}
   if(!S.data.tasks) S.data.tasks={};
   if(!S.data.settings) S.data.settings={};
   const status=document.getElementById('tStatus').value;
@@ -1840,6 +1842,83 @@ function showWAPrompt(type, taskId){
   document.getElementById('waGo').onclick=function(){ div.remove(); action(); };
 }
 
+
+// ====== DEADLINE REMINDER ======
+function showDeadlineReminder(){
+  const today = td();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate()+1);
+  const tmrStr = tomorrow.toISOString().split('T')[0];
+
+  const allTasks = tList().filter(t=>!t.deleted&&!['Completed','Abandoned'].includes(t.status));
+
+  // Filter tasks relevant to current user
+  let myTasks;
+  if(S.user.access==='admin'){
+    myTasks = allTasks;
+  } else {
+    myTasks = allTasks.filter(t=>t.assignedBy===S.user.code||t.assignees?.includes(S.user.code));
+  }
+
+  const overdue = myTasks.filter(t=>t.target&&t.target<today);
+  const dueToday = myTasks.filter(t=>t.target===today);
+  const dueTomorrow = myTasks.filter(t=>t.target===tmrStr);
+
+  if(!overdue.length&&!dueToday.length&&!dueTomorrow.length) return;
+
+  const existing=document.getElementById('deadlineReminderOverlay');
+  if(existing) existing.remove();
+
+  function taskRow(t){
+    const pri={High:'🔴',Medium:'🟡',Low:'🟢'}[t.pri]||'🟡';
+    const assignedToNames=(t.assignees||[]).map(c=>getEmp(c)?.name?.split(' ')[0]||c).join(', ')||'—';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0">'
+      +'<span style="font-size:11px">'+pri+'</span>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:12px;font-weight:600;color:#1a2340;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.client+' — '+t.title+'</div>'
+      +'<div style="font-size:10px;color:#888">'+t.id+' · '+assignedToNames+'</div>'
+      +'</div></div>';
+  }
+
+  let html='';
+  if(overdue.length){
+    html+='<div style="margin-bottom:12px">'
+      +'<div style="font-size:11px;font-weight:700;color:#e53e3e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⚠️ Overdue ('+overdue.length+')</div>'
+      +overdue.slice(0,3).map(taskRow).join('')
+      +(overdue.length>3?'<div style="font-size:11px;color:#888;padding-top:4px">+'+( overdue.length-3)+' more...</div>':'')
+      +'</div>';
+  }
+  if(dueToday.length){
+    html+='<div style="margin-bottom:12px">'
+      +'<div style="font-size:11px;font-weight:700;color:#dd6b20;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📅 Due Today ('+dueToday.length+')</div>'
+      +dueToday.slice(0,3).map(taskRow).join('')
+      +(dueToday.length>3?'<div style="font-size:11px;color:#888;padding-top:4px">+'+(dueToday.length-3)+' more...</div>':'')
+      +'</div>';
+  }
+  if(dueTomorrow.length){
+    html+='<div style="margin-bottom:12px">'
+      +'<div style="font-size:11px;font-weight:700;color:#d69e2e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🔔 Due Tomorrow ('+dueTomorrow.length+')</div>'
+      +dueTomorrow.slice(0,3).map(taskRow).join('')
+      +(dueTomorrow.length>3?'<div style="font-size:11px;color:#888;padding-top:4px">+'+(dueTomorrow.length-3)+' more...</div>':'')
+      +'</div>';
+  }
+
+  const div=document.createElement('div');
+  div.id='deadlineReminderOverlay';
+  div.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  div.innerHTML='<div style="background:#fff;border-radius:16px;padding:20px;max-width:380px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+    +'<div style="font-family:serif;font-size:20px;color:#966a00;font-weight:700">⏰ Task Reminders</div>'
+    +'<button id="closeReminder" style="border:none;background:none;font-size:20px;cursor:pointer;color:#999">✕</button>'
+    +'</div>'
+    +html
+    +'<button id="dismissReminder" style="width:100%;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#966a00,#c4930a);color:#fff;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px">Got it ✓</button>'
+    +'</div>';
+  document.body.appendChild(div);
+  document.getElementById('closeReminder').onclick=function(){ div.remove(); };
+  document.getElementById('dismissReminder').onclick=function(){ div.remove(); };
+}
+
 (function(){
   var FB_CFG = {
     apiKey:"AIzaSyAan0SB_IUwxBBMrePrs0NJtm3UxAsYnYU",
@@ -1924,6 +2003,7 @@ function showWAPrompt(type, taskId){
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           console.log('✅ Firebase data loaded');
+          setTimeout(showDeadlineReminder, 800);
         } else {
           window._fbWrite(S.data);
           console.log('✅ Local data pushed to Firebase');
