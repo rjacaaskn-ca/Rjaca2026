@@ -1058,7 +1058,7 @@ function renderAssignedBy(){
   let list=tList().filter(t=>t.assignedBy===u.code&&!t.deleted&&activeStatuses.includes(t.status));
 
   // Priority & Category dropdowns
-  const allCats=[...new Set(list.map(t=>t.category).filter(Boolean))];
+  const allCats=[...new Set(list.map(t=>t.cat).filter(Boolean))];
   const selPri=document.getElementById('abyPriF')?.value||'all';
   const selCat=document.getElementById('abyCatF')?.value||'all';
   document.getElementById('abyFilters').innerHTML=
@@ -1077,8 +1077,8 @@ function renderAssignedBy(){
   const search=document.getElementById('abySearch')?.value.toLowerCase()||'';
   if(abyStatusFilter!=='all') list=list.filter(t=>t.status===abyStatusFilter);
   if(selPri!=='all') list=list.filter(t=>t.pri===selPri);
-  if(selCat!=='all') list=list.filter(t=>t.category===selCat);
-  if(search) list=list.filter(t=>(t.client||'').toLowerCase().includes(search)||(t.desc||'').toLowerCase().includes(search)||(t.category||'').toLowerCase().includes(search));
+  if(selCat!=='all') list=list.filter(t=>t.cat===selCat);
+  if(search) list=list.filter(t=>(t.client||'').toLowerCase().includes(search)||(t.desc||'').toLowerCase().includes(search)||(t.cat||'').toLowerCase().includes(search));
 
   list.sort((a,b)=>(isOD(a)&&!isOD(b)?-1:!isOD(a)&&isOD(b)?1:(priO[a.pri]??9)-(priO[b.pri]??9)));
   const total=tList().filter(t=>t.assignedBy===u.code&&!t.deleted&&activeStatuses.includes(t.status)).length;
@@ -1097,7 +1097,7 @@ function renderAssignedTo(){
   let list=tList().filter(t=>t.assignees?.includes(u.code)&&!t.deleted&&activeStatuses.includes(t.status));
 
   // Priority & Category dropdowns
-  const allCats=[...new Set(list.map(t=>t.category).filter(Boolean))];
+  const allCats=[...new Set(list.map(t=>t.cat).filter(Boolean))];
   const selPri=document.getElementById('atoPriF')?.value||'all';
   const selCat=document.getElementById('atoCatF')?.value||'all';
   document.getElementById('atoFilters').innerHTML=
@@ -1116,8 +1116,8 @@ function renderAssignedTo(){
   const search=document.getElementById('atoSearch')?.value.toLowerCase()||'';
   if(atoStatusFilter!=='all') list=list.filter(t=>t.status===atoStatusFilter);
   if(selPri!=='all') list=list.filter(t=>t.pri===selPri);
-  if(selCat!=='all') list=list.filter(t=>t.category===selCat);
-  if(search) list=list.filter(t=>(t.client||'').toLowerCase().includes(search)||(t.desc||'').toLowerCase().includes(search)||(t.category||'').toLowerCase().includes(search));
+  if(selCat!=='all') list=list.filter(t=>t.cat===selCat);
+  if(search) list=list.filter(t=>(t.client||'').toLowerCase().includes(search)||(t.desc||'').toLowerCase().includes(search)||(t.cat||'').toLowerCase().includes(search));
 
   list.sort((a,b)=>(isOD(a)&&!isOD(b)?-1:!isOD(a)&&isOD(b)?1:(priO[a.pri]??9)-(priO[b.pri]??9)));
   const total=tList().filter(t=>t.assignees?.includes(u.code)&&!t.deleted&&activeStatuses.includes(t.status)).length;
