@@ -209,11 +209,11 @@ select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .set-edit{background:rgba(150,106,0,.07);border:1px solid rgba(150,106,0,.2);color:var(--gold);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Outfit',sans-serif;}
 .overlay{position:fixed;inset:0;background:rgba(26,35,64,.35);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);}
 .overlay.open{display:flex;}
-.modal{background:#fff;border:1px solid var(--border);border-radius:22px 22px 0 0;padding:18px 16px calc(24px + var(--sab));width:100%;max-width:480px;max-height:92vh;overflow-y:auto;box-shadow:0 -4px 20px rgba(26,35,64,.1);}
+.modal{background:#fff;border:1px solid var(--border);border-radius:22px 22px 0 0;padding:18px 16px calc(24px + var(--sab));width:100%;max-width:600px;max-height:98vh;overflow-y:auto;box-shadow:0 -4px 20px rgba(26,35,64,.1);}
 .modal::-webkit-scrollbar{display:none;}
 .mhandle{width:36px;height:4px;background:var(--s4);border-radius:4px;margin:0 auto 14px;}
 .mtitle{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold);margin-bottom:14px;}
-.fgrp{margin-bottom:12px;}
+.fgrp{margin-bottom:8px;}
 .fgrp label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:6px;}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .mfoot{display:flex;gap:8px;margin-top:8px;}
@@ -270,7 +270,7 @@ table.xtbl tbody td.wrap{white-space:normal;min-width:160px;max-width:220px;}
 .tbl-status{display:inline-block;font-size:9px;font-weight:700;padding:3px 8px;border-radius:7px;white-space:nowrap;}
 .tbl-od{display:inline-block;background:rgba(192,40,26,.08);color:var(--danger);border-radius:5px;font-size:8px;font-weight:700;padding:1px 5px;margin-left:4px;}
 .tbl-upd{font-size:9px;color:var(--muted);}
-@media(min-width:600px){.modal{border-radius:20px;margin:auto;max-height:85vh;}.overlay{align-items:center;padding:20px;}.sgrid{grid-template-columns:repeat(6,1fr);}}
+@media(min-width:600px){.modal{border-radius:20px;margin:auto;max-height:96vh;}.overlay{align-items:center;padding:20px;}.sgrid{grid-template-columns:repeat(6,1fr);}}
 
 /* ====== CHAT ====== */
 .chat-wrap{display:flex;height:calc(100vh - 110px);gap:0;border-radius:14px;overflow:hidden;background:#fff;border:1px solid var(--border);box-shadow:var(--shadow);}
@@ -415,7 +415,7 @@ table.xtbl tbody td.wrap{white-space:normal;min-width:160px;max-width:220px;}
 </div>
 
 <!-- Modals -->
-<div class="overlay" id="taskModal"><div class="modal"><div class="mhandle"></div><div class="mtitle" id="taskModalTitle">New Task</div><div class="fgrp"><label>Client Name *</label><input class="fi" id="tClient" placeholder="e.g. Mehta & Sons Pvt Ltd"></div><div class="fgrp"><label>Task Description *</label><input class="fi" id="tTitle" placeholder="Brief description of the work"></div><div class="frow"><div class="fgrp"><label>Category</label><select class="fi" id="tCat" onchange="updateSubCats()"></select></div><div class="fgrp"><label>Sub-Category</label><select class="fi" id="tSub"></select></div></div><div class="frow"><div class="fgrp"><label>Priority</label><select class="fi" id="tPri"><option value="High">🔴 High</option><option value="Medium" selected>🟡 Medium</option><option value="Low">🟢 Low</option></select></div><div class="fgrp"><label>Status</label><select class="fi" id="tStatus" onchange="toggleCompletionDate()"><option>Not Yet Commenced</option><option>In Progress</option><option>Data Pending</option><option>Completed</option><option>Abandoned</option></select></div></div><div class="frow"><div class="fgrp"><label>Start Date</label><input class="fi" type="date" id="tStart"></div><div class="fgrp"><label>Target Date</label><input class="fi" type="date" id="tTarget"></div></div><div class="fgrp" id="completeDateGrp" style="display:none"><label>Completion Date</label><input class="fi" type="date" id="tComplete"></div><div class="fgrp"><label>Assign To (tap to select)</label><div class="assign-list" id="assignList"></div></div><div class="fgrp"><label>Notes</label><input class="fi" id="tNotes" placeholder="Optional…"></div><div class="mfoot"><button class="btn-cancel" onclick="closeModal('taskModal')">Cancel</button><button class="btn-pri" onclick="saveTask()">Save Task</button></div></div></div>
+<div class="overlay" id="taskModal"><div class="modal" style="max-width:700px"><div class="mhandle"></div><div class="mtitle" id="taskModalTitle">New Task</div><div class="fgrp"><label>Client Name *</label><input class="fi" id="tClient" placeholder="e.g. Mehta & Sons Pvt Ltd"></div><div class="fgrp"><label>Task Description *</label><input class="fi" id="tTitle" placeholder="Brief description of the work"></div><div class="frow"><div class="fgrp"><label>Category</label><select class="fi" id="tCat" onchange="updateSubCats()"></select></div><div class="fgrp"><label>Sub-Category</label><select class="fi" id="tSub"></select></div></div><div class="frow"><div class="fgrp"><label>Priority</label><select class="fi" id="tPri"><option value="High">🔴 High</option><option value="Medium" selected>🟡 Medium</option><option value="Low">🟢 Low</option></select></div><div class="fgrp"><label>Status</label><select class="fi" id="tStatus" onchange="toggleCompletionDate()"><option>Not Yet Commenced</option><option>In Progress</option><option>Data Pending</option><option>Completed</option><option>Abandoned</option></select></div></div><div class="frow"><div class="fgrp"><label>Start Date</label><input class="fi" type="date" id="tStart"></div><div class="fgrp"><label>Target Date</label><input class="fi" type="date" id="tTarget"></div></div><div class="fgrp" id="completeDateGrp" style="display:none"><label>Completion Date</label><input class="fi" type="date" id="tComplete"></div><div class="fgrp"><label>Assign To (tap to select)</label><div class="assign-list" id="assignList" style="max-height:160px"></div></div><div class="fgrp"><label>Notes</label><input class="fi" id="tNotes" placeholder="Optional…"></div><div class="mfoot"><button class="btn-cancel" onclick="closeModal('taskModal')">Cancel</button><button class="btn-pri" onclick="saveTask()">Save Task</button></div></div></div>
 <div class="overlay" id="updateModal"><div class="modal"><div class="mhandle"></div><div class="mtitle">Update Task</div><div id="updateInfo" style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;"></div><div class="fgrp"><label>Update Status To</label><div class="status-opts" id="updateStatusOpts"></div></div><div class="fgrp"><label>Remarks</label><input class="fi" id="uNote" placeholder="What did you work on?"></div><div class="mfoot"><button class="btn-cancel" onclick="closeModal('updateModal')">Cancel</button><button class="btn-pri" onclick="submitUpdate()">Submit Update</button></div></div></div>
 <div class="overlay" id="empModal"><div class="modal"><div class="mhandle"></div><div class="mtitle" id="empModalTitle">Add Team Member</div><div class="fgrp"><label>Full Name *</label><input class="fi" id="eName" placeholder="e.g. Priya Sharma"></div><div class="fgrp"><label>Designation</label><select class="fi" id="eDesig"><option>Manager</option><option>Senior Manager</option><option>Audit Manager</option><option>Tax Consultant</option><option>Executive</option><option>Article Assistant</option><option>Accounts Executive</option><option>Admin Staff</option></select></div><div class="fgrp"><label>WhatsApp Number</label><input class="fi" id="eWA" placeholder="10-digit number"></div><div class="fgrp"><label>Password</label><input class="fi" type="password" id="ePass" placeholder="Leave blank to keep current"></div><div class="mfoot"><button class="btn-cancel" onclick="closeModal('empModal')">Cancel</button><button class="btn-pri" onclick="saveEmp()">Save</button></div></div></div>
 <div class="overlay" id="passModal"><div class="modal"><div class="mhandle"></div><div class="mtitle" id="passModalTitle">Change Password</div><div id="passInfo" style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;"></div><div class="fgrp" id="oldPassGrp"><label>Current Password</label><input class="fi" type="password" id="oldPass" placeholder="Enter current password…"></div><div class="fgrp"><label>New Password</label><input class="fi" type="password" id="newPass" placeholder="Enter new password…"></div><div class="fgrp"><label>Confirm New Password</label><input class="fi" type="password" id="confirmPass" placeholder="Re-enter new password…"></div><div class="mfoot"><button class="btn-cancel" onclick="closeModal('passModal')">Cancel</button><button class="btn-pri" onclick="changePass()">Update Password</button></div></div></div>
@@ -495,7 +495,8 @@ function fbSanitize(obj){
 function saveLocal(){
   if(typeof window.ensureData==='function') window.ensureData();
   localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
-  if(typeof window._fbLastSave==='function') window._fbLastSave();
+  // Block listener before writing to prevent overwrite
+  if(typeof window._fbWrite !== 'undefined') window._listenerBlocked = true;
   if(typeof window._fbWrite==='function') window._fbWrite(S.data);
 }
 function empList(activeOnly=true){return Object.entries(S.data.employees||{}).filter(([,e])=>!activeOnly||(e.active!==false)).map(([code,e])=>({code,...e})).sort((a,b)=>a.name.localeCompare(b.name));}
@@ -1761,20 +1762,37 @@ loadData();
     document.head.appendChild(s);
   }
 
-  // Save only to Firebase, do not re-read after save (avoids loop)
-  var _saving = false;
+  // Save to Firebase — listener blocked until write fully completes
+  var _writeInProgress = false;
+  var _pendingWrite = null;
+
   window._fbWrite = function(data){
     if(!window._FBDB) return;
-    if(_saving) return;
-    _saving = true;
-    var clean = fbSanitize(JSON.parse(JSON.stringify(data)));
+    // Store latest data to write (queue only latest)
+    _pendingWrite = JSON.parse(JSON.stringify(data));
+    if(_writeInProgress) return; // will be flushed after current write
+    _doWrite();
+  };
+
+  function _doWrite(){
+    if(!_pendingWrite) return;
+    var dataToWrite = _pendingWrite;
+    _pendingWrite = null;
+    _writeInProgress = true;
+    var clean = fbSanitize(dataToWrite);
     window._FBDB.ref('rjaca').set(clean).then(function(){
-      _saving = false;
+      _writeInProgress = false;
+      window._listenerBlocked = false; // allow listener after write done
+      if(_pendingWrite) _doWrite(); // flush if more writes queued
     }).catch(function(e){
-      _saving = false;
+      _writeInProgress = false;
+      window._listenerBlocked = false;
       console.warn('FB write error:', e);
     });
-  };
+  }
+
+  // Block listener while writing
+  window._listenerBlocked = false;
 
   function startFirebase(){
     try {
@@ -1798,18 +1816,17 @@ loadData();
           if(S.page){ renderCurrentPage(); updateBadges(); }
           console.log('✅ Firebase data loaded');
         } else {
-          // First time — write local data to Firebase
           window._fbWrite(S.data);
           console.log('✅ Local data pushed to Firebase');
         }
 
-        // Real-time listener — only updates when OTHER devices change data
-        var lastSave = Date.now();
+        // Real-time listener — blocked during writes, active for other devices
         db.ref('rjaca').on('value', function(snap){
-          // Skip if this update is from our own save (within 2 seconds)
-          if(Date.now() - lastSave < 2000) return;
+          if(_writeInProgress || window._listenerBlocked) return; // our own write — skip
           if(!snap.exists()) return;
           var d = ensureStructure(snap.val());
+          // Only update if data is actually different (other device change)
+          if(JSON.stringify(d) === JSON.stringify(S.data)) return;
           var prevUser = S.user;
           var prevPage = S.page;
           S.data = d;
@@ -1818,10 +1835,9 @@ loadData();
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           if(typeof updateChatBadge==='function') updateChatBadge();
+          console.log('🔄 Firebase: remote update received');
         });
 
-        // Track save time
-        window._fbLastSave = function(){ lastSave = Date.now(); };
       }).catch(function(e){ console.warn('Firebase load error:', e); });
 
     } catch(e){ console.warn('Firebase start error:', e); }
