@@ -1159,11 +1159,17 @@ function renderManagerTasks(){
 function renderCompleted(){
   const u=S.user;let list;
   const doneStatuses=['Completed','Abandoned'];
-  if(u.access==='admin')list=tList().filter(t=>doneStatuses.includes(t.status)&&!t.deleted);
-  else if(u.access==='manager'){
-    const viewable=empList(true).filter(e=>e.access!=='admin').map(e=>e.code);
-    list=tList().filter(t=>doneStatuses.includes(t.status)&&!t.deleted&&t.assignees?.some(a=>viewable.includes(a)));
-  }else list=tList().filter(t=>doneStatuses.includes(t.status)&&!t.deleted&&t.assignees?.includes(u.code));
+  if(u.access==='admin'){
+    // Admin: sabke saare completed tasks
+    list=tList().filter(t=>doneStatuses.includes(t.status)&&!t.deleted);
+  } else {
+    // Manager & Executive: jo usne assign kiye + jo usse assign hue
+    list=tList().filter(t=>
+      doneStatuses.includes(t.status) &&
+      !t.deleted &&
+      (t.assignedBy===u.code || t.assignees?.includes(u.code))
+    );
+  }
   list=list.sort((a,b)=>(b.complete||b.updatedAt||'').localeCompare(a.complete||a.updatedAt||''));
   let delSection='';
   if(u.access==='admin'){
