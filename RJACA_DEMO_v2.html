@@ -1346,14 +1346,14 @@ window.saveTask=function(){
   console.log('💾 saveTask | editId:', S.editTaskId, '| frozenAssignedBy:', S.frozenAssignedBy, '| final:', _finalAssignedBy);
   const t={client,title,cat:document.getElementById('tCat').value,sub:document.getElementById('tSub').value,pri:document.getElementById('tPri').value,status,start:document.getElementById('tStart').value,target:document.getElementById('tTarget').value,complete:status==='Completed'?(document.getElementById('tComplete').value||td()):'',assignees:S.selectedAssignees,assignedBy:_finalAssignedBy,notes:document.getElementById('tNotes').value.trim(),updatedBy:S.user.name,updatedAt:now()};
   if(S.editTaskId){t.createdBy=_origTask.createdBy;t.createdAt=_origTask.createdAt;S.data.tasks[S.editTaskId]=t;toast('Task updated ✓','ok');}
-  else{const num=String(S.data.settings.nextTaskNum||9).padStart(3,'0');const id='TSK-'+num;t.id=id;t.createdBy=S.user.name;t.createdAt=now();S.data.tasks[id]=t;S.data.settings.nextTaskNum=(S.data.settings.nextTaskNum||9)+1;toast('Task '+id+' created ✓','ok');}
+  else{const num=String(S.data.settings.nextTaskNum||9).padStart(3,'0');const id='TSK-'+num;t.id=id;t.createdBy=S.user.name;t.createdAt=now();S.data.tasks[id]=t;S.data.settings.nextTaskNum=(S.data.settings.nextTaskNum||9)+1;toast('Task '+id+' created ✓','ok');S.frozenAssignedBy=null;saveLocal();closeModal('taskModal');renderCurrentPage();if(t.assignees?.length)setTimeout(()=>showWAPrompt('assign',id),300);return;}
   S.frozenAssignedBy=null;saveLocal();closeModal('taskModal');renderCurrentPage();
 };
 
 // ====== UPDATE MODAL ======
 window.openUpdateModal=function(id){const t=S.data.tasks?.[id];if(!t)return;S.updateTaskId=id;S.updateStatus=t.status;document.getElementById('updateInfo').innerHTML='<strong style="color:var(--gold)">'+t.id+'</strong> — '+t.title+'<br><span style="color:var(--muted)">🏢 '+t.client+' · '+t.cat+'</span>';const allowed=S.user.access==='executive'?['Not Yet Commenced','In Progress','Data Pending']:['Not Yet Commenced','In Progress','Data Pending','Completed','Abandoned'];document.getElementById('updateStatusOpts').innerHTML=allowed.map(s=>'<button class="sopt '+(t.status===s?'on':'')+'" onclick="pickStatus(this,\''+s+'\')">'+s+'</button>').join('');document.getElementById('uNote').value='';openModal('updateModal');};
 window.pickStatus=function(el,s){S.updateStatus=s;document.querySelectorAll('.sopt').forEach(b=>b.classList.remove('on'));el.classList.add('on');};
-window.submitUpdate=function(){const id=S.updateTaskId;if(!id||!S.updateStatus)return;const t=S.data.tasks[id];const updates={...t,status:S.updateStatus,notes:document.getElementById('uNote').value.trim()||t.notes,updatedBy:S.user.name,updatedAt:now(),assignedBy:t.assignedBy,assignees:t.assignees,createdBy:t.createdBy,createdAt:t.createdAt};if(S.updateStatus==='Completed')updates.complete=td();S.data.tasks[id]=updates;saveLocal();toast('Status updated ✓','ok');closeModal('updateModal');renderCurrentPage();};
+window.submitUpdate=function(){const id=S.updateTaskId;if(!id||!S.updateStatus)return;const t=S.data.tasks[id];const updates={...t,status:S.updateStatus,notes:document.getElementById('uNote').value.trim()||t.notes,updatedBy:S.user.name,updatedAt:now(),assignedBy:t.assignedBy,assignees:t.assignees,createdBy:t.createdBy,createdAt:t.createdAt};if(S.updateStatus==='Completed')updates.complete=td();S.data.tasks[id]=updates;saveLocal();toast('Status updated ✓','ok');closeModal('updateModal');renderCurrentPage();setTimeout(()=>showWAPrompt('status',id),300);};
 
 // ====== EMPLOYEE CRUD ======
 function populateMgrDD(sel=''){const mgrs=empList().filter(e=>getAccess(e.desig)==='manager'||getAccess(e.desig)==='admin');const el=document.getElementById('eMgr');if(!el)return;el.innerHTML='<option value="—">— None —</option>'+mgrs.map(m=>'<option value="'+m.name+'" '+(m.name===sel?'selected':'')+'>'+m.name+'</option>').join('');}
@@ -1737,6 +1737,109 @@ function fmtMonth(ym){
 loadData();
 
 // Firebase — load SDK then connect
+
+// ====== WHATSAPP NOTIFICATIONS ======
+function waNum(code){
+  const e=getEmp(code);
+  return e?.wa ? e.wa.replace(/[^0-9]/g,'') : null;
+}
+
+function sendWATaskAssigned(taskId){
+  const t=S.data.tasks[taskId];
+  if(!t||!t.assignees?.length) return;
+  const nums = t.assignees.map(c=>waNum(c)).filter(Boolean);
+  if(!nums.length){ toast('Staff ke WhatsApp numbers nahi hain! Staff → Edit mein add karo.','err'); return; }
+  const msg = `🔔 *New Task Assigned*
+
+`
+    +`*Task ID:* ${t.id}
+`
+    +`*Client:* ${t.client}
+`
+    +`*Work:* ${t.title}
+`
+    +`*Category:* ${t.cat}${t.sub?' → '+t.sub:''}
+`
+    +`*Priority:* ${t.pri}
+`
+    +`*Target Date:* ${t.target||'Not set'}
+`
+    +`*Assigned By:* ${getEmp(t.assignedBy)?.name||t.assignedBy}
+
+`
+    +`Please check the RJACA Office Portal.`;
+  // Open WhatsApp for each assignee
+  nums.forEach((num,i)=>{
+    setTimeout(()=>{
+      window.open('https://wa.me/91'+num+'?text='+encodeURIComponent(msg),'_blank');
+    }, i*800);
+  });
+}
+
+function sendWAStatusUpdate(taskId){
+  const t=S.data.tasks[taskId];
+  if(!t) return;
+  // Notify assignedBy person
+  const notifyCode = t.assignedBy;
+  const num = waNum(notifyCode);
+  if(!num){ toast('Assigned By person ka WhatsApp number nahi hai!','err'); return; }
+  const msg = `📋 *Task Status Update*
+
+`
+    +`*Task ID:* ${t.id}
+`
+    +`*Client:* ${t.client}
+`
+    +`*Work:* ${t.title}
+`
+    +`*New Status:* ${t.status}
+`
+    +`*Updated By:* ${t.updatedBy}
+`
+    +(t.notes?`*Remarks:* ${t.notes}
+`:'')+`
+`
+    +`Please check the RJACA Office Portal.`;
+  window.open('https://wa.me/91'+num+'?text='+encodeURIComponent(msg),'_blank');
+}
+
+function showWAPrompt(type, taskId){
+  const existing=document.getElementById('waPromptOverlay');
+  if(existing) existing.remove();
+  const t=S.data.tasks[taskId];
+  if(!t) return;
+  
+  let title, desc, btnLabel, action;
+  if(type==='assign'){
+    const names=(t.assignees||[]).map(c=>getEmp(c)?.name?.split(' ')[0]||c).join(', ');
+    title='📲 WhatsApp Notify';
+    desc='Send task assignment message to: <b>'+names+'</b>';
+    btnLabel='Send on WhatsApp';
+    action=function(){ sendWATaskAssigned(taskId); };
+  } else {
+    const assignedByName=getEmp(t.assignedBy)?.name?.split(' ')[0]||t.assignedBy;
+    title='📲 Notify on WhatsApp';
+    desc='Send status update to: <b>'+assignedByName+'</b>';
+    btnLabel='Send on WhatsApp';
+    action=function(){ sendWAStatusUpdate(taskId); };
+  }
+
+  const div=document.createElement('div');
+  div.id='waPromptOverlay';
+  div.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  div.innerHTML='<div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
+    +'<div style="font-size:36px;margin-bottom:10px">💬</div>'
+    +'<div style="font-weight:700;font-size:16px;color:#1a2340;margin-bottom:8px">'+title+'</div>'
+    +'<div style="font-size:13px;color:#666;margin-bottom:20px">'+desc+'</div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button id="waSkip" style="flex:1;padding:11px;border:1px solid #ddd;border-radius:10px;background:#f5f5f5;font-size:13px;font-weight:600;cursor:pointer">Skip</button>'
+    +'<button id="waGo" style="flex:1;padding:11px;border:none;border-radius:10px;background:#25D366;color:#fff;font-size:13px;font-weight:700;cursor:pointer">'+btnLabel+' 📲</button>'
+    +'</div></div>';
+  document.body.appendChild(div);
+  document.getElementById('waSkip').onclick=function(){ div.remove(); };
+  document.getElementById('waGo').onclick=function(){ div.remove(); action(); };
+}
+
 (function(){
   var FB_CFG = {
     apiKey:"AIzaSyAan0SB_IUwxBBMrePrs0NJtm3UxAsYnYU",
