@@ -1658,11 +1658,7 @@ window.sendChat = function(){
   input.value = '';
   renderChatSidebar();
   renderChatMessages();
-  // Keep listener blocked for 3s after chat send to prevent Firebase overwrite
-  if(typeof window._listenerBlocked !== 'undefined'){
-    window._listenerBlocked = true;
-    setTimeout(function(){ window._listenerBlocked = false; }, 3000);
-  }
+
 };
 
 
@@ -2140,18 +2136,33 @@ function showDeadlineReminder(onDone){
           if(_writeInProgress || window._listenerBlocked) return; // our own write — skip
           if(!snap.exists()) return;
           var d = ensureStructure(snap.val());
-          // Only update if data is actually different (other device change)
+          // Only update if data is actually different
           if(JSON.stringify(d) === JSON.stringify(S.data)) return;
           var prevUser = S.user;
           var prevPage = S.page;
+          // ── MERGE messages: keep ALL messages from both local + remote ──
+          // This prevents newly sent messages from disappearing on listener fire
+          var localMsgs = S.data.messages || {};
+          var remoteMsgs = d.messages || {};
+          var mergedMsgs = Object.assign({}, remoteMsgs);
+          Object.keys(localMsgs).forEach(function(roomId){
+            if(roomId.startsWith('_read_')) return; // skip read receipts
+            if(!mergedMsgs[roomId]) mergedMsgs[roomId] = {};
+            Object.assign(mergedMsgs[roomId], localMsgs[roomId]);
+          });
+          d.messages = mergedMsgs;
+          // ── MERGE notices: keep local notices if remote is behind ──
+          if(S.data.notices && Object.keys(S.data.notices).length > Object.keys(d.notices||{}).length){
+            d.notices = Object.assign({}, d.notices||{}, S.data.notices);
+          }
           S.data = d;
           S.user = prevUser;
           S.page = prevPage;
           localStorage.setItem('rjaca-demo', JSON.stringify(S.data));
           if(S.page){ renderCurrentPage(); updateBadges(); }
           if(typeof updateChatBadge==='function') updateChatBadge();
-  if(typeof updateNoticesBadge==='function') updateNoticesBadge();
-          console.log('🔄 Firebase: remote update received');
+          if(typeof updateNoticesBadge==='function') updateNoticesBadge();
+          console.log('🔄 Firebase: remote update received (messages merged)');
         });
 
       }).catch(function(e){ console.warn('Firebase load error:', e); });
