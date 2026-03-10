@@ -29,7 +29,12 @@ body.dark .modal-bg .card{background:var(--s1);}
 body.dark .task-card{background:var(--s1);border-color:var(--border);}
 body.dark .emp-card{background:var(--s1);}
 body.dark table th{background:var(--s3);}
-body.dark table td{border-color:var(--border);}
+body.dark table td{border-color:var(--border);color:var(--text);}
+body.dark .tbl-wrap{background:var(--s1);}
+body.dark table.xtbl tbody tr{border-color:var(--border);}
+body.dark table.xtbl tbody tr:hover{background:rgba(150,106,0,.08);}
+body.dark table.xtbl tbody tr.od-row{background:rgba(192,40,26,.08);}
+body.dark table.xtbl thead th{background:var(--s3);color:var(--text);}
 body.dark .tab{background:var(--s2);color:var(--muted);}
 body.dark .tab.on{background:var(--s1);color:var(--text);}
 body.dark .demo-bar{background:var(--s3);}
@@ -2191,7 +2196,18 @@ function showDeadlineReminder(onDone){
       if(liv) liv.style.display='block';
       console.log('✅ Firebase connected');
 
+      // Anonymous Auth — secures DB against public access
+      var authPromise;
+      if(firebase.auth) {
+        authPromise = firebase.auth().signInAnonymously()
+          .then(function(){ console.log('✅ Firebase anonymous auth OK'); })
+          .catch(function(e){ console.warn('Firebase auth skipped:', e.message); });
+      } else {
+        authPromise = Promise.resolve();
+      }
+
       // Load once on start
+      authPromise.then(function(){
       db.ref('rjaca').once('value').then(function(snap){
         if(snap.exists()){
           var d = ensureStructure(snap.val());
@@ -2242,13 +2258,16 @@ function showDeadlineReminder(onDone){
         });
 
       }).catch(function(e){ console.warn('Firebase load error:', e); });
+      }); // end authPromise.then
 
     } catch(e){ console.warn('Firebase start error:', e); }
   }
 
   loadJS('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js', function(){
     loadJS('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js', function(){
-      startFirebase();
+      loadJS('https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js', function(){
+        startFirebase();
+      });
     });
   });
 })();
